@@ -2,9 +2,9 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
     <title>Export Excel từ JSON</title>
-    <link rel="stylesheet" href="css.css" />
+    <link rel="stylesheet" href="css.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
@@ -13,56 +13,40 @@
             background: #f0f0f0;
         }
 
-        input,
-        textarea {
+        input {
             margin: 10px 0;
-            width: 100%;
         }
 
         button {
             padding: 10px 20px;
-        }
-
-        textarea {
-            font-family: monospace;
         }
     </style>
 </head>
 
 <body>
     <h2>Chọn file JSON</h2>
-
     <label>File instances_default.json:
         <input type="file" id="file1" accept=".json" />
-    </label><br />
-
-    <label>Dữ liệu brandjson.json (nhập JSON bằng tay):
-        <textarea id="file2Input" rows="15" placeholder='[
-  {
-    "name": "PS_BCR_4D_CHAM_SOC_NUOU_KHOE",
-    "id": 1240,
-    "color": "#cbd7f2",
-    "type": "any",
-    "attributes": []
-  },
-  {
-    "name": "PS_BCR_4D_KHANG_KHUAN",
-    "id": 1241,
-    "color": "#db6558",
-    "type": "any",
-    "attributes": []
-  },
-  {
-    "name": "SUNLIGHT_NRC_GUNG_TUI_750G",
-    "id": 2546,
-    "color": "#44c32c",
-    "type": "any",
-    "attributes": []
-  }
-]'></textarea>
-    </label><br />
-
+    </label><br>
+    <label>File brandjson.json:
+        <input type="file" id="file2" accept=".json" />
+    </label><br>
     <button onclick="processFiles()">Xuất Excel</button>
+    <!-- <div class="pulsing-1"></div>
+<div class="pulsing-2"></div>
+<div class="pulsing-3"></div>
+<div class="pulsing-4"></div>
+<div class="pulsing-5"></div>
+<div class="pulsing-6"></div>
+<div class="pulsing-7"></div>-->
+    <div style="
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+" class="pulsing-8"></div>
+    <!-- <div  class="pulsing-9"></div> -->
+    <!-- <div class="pulsing-10" data-c="💯"></div> -->
 
     <script>
         let file1Data, file2Data;
@@ -81,25 +65,21 @@
         function processFiles() {
             readJSONFile(document.getElementById("file1"), (data1) => {
                 file1Data = data1;
-
-                // Lấy dữ liệu JSON nhập tay từ textarea
-                const inputText = document.getElementById("file2Input").value;
-                try {
-                    file2Data = JSON.parse(inputText);
+                readJSONFile(document.getElementById("file2"), (data2) => {
+                    file2Data = data2;
                     generateExcel();
-                } catch (e) {
-                    alert("Dữ liệu nhập tay không phải JSON hợp lệ!");
-                    console.error(e);
-                }
+                });
             });
         }
 
         function generateExcel() {
+            // Tạo map từ category_id → name
             const categoryMap = {};
             file2Data.forEach(item => {
                 categoryMap[item.name] = { id: item.id, quantity: 0 };
             });
 
+            // Đếm số lượng xuất hiện của từng name trong file1 (annotations.category_id)
             const idToName = {};
             file1Data.categories.forEach(cat => {
                 idToName[cat.id] = cat.name;
@@ -112,6 +92,7 @@
                 }
             });
 
+            // Tạo dữ liệu cho Excel
             const output = [];
             for (const [name, value] of Object.entries(categoryMap)) {
                 output.push({
@@ -121,6 +102,7 @@
                 });
             }
 
+            // Tạo worksheet và export
             const ws = XLSX.utils.json_to_sheet(output);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Export");
