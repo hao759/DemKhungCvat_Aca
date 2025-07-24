@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Export Excel từ JSON</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        input {
+            margin: 10px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Chọn file JSON</h2>
+    <label>File instances_default.json:
+        <input type="file" id="file1" accept=".json" />
+    </label><br>
+    <label>File brandjson.json:
+        <input type="file" id="file2" accept=".json" />
+    </label><br>
+    <button onclick="processFiles()">Xuất Excel</button>
+
+    <script>
+        let file1Data, file2Data;
+
+        function readJSONFile(input, callback) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = JSON.parse(e.target.result);
+                callback(data);
+            };
+            reader.readAsText(file);
+        }
+
+        function processFiles() {
+            readJSONFile(document.getElementById("file1"), (data1) => {
+                file1Data = data1;
+                readJSONFile(document.getElementById("file2"), (data2) => {
+                    file2Data = data2;
+                    generateExcel();
+                });
+            });
+        }
+
+        function generateExcel() {
+            // Tạo map từ category_id → name
+            const categoryMap = {};
+            file2Data.forEach(item => {
+                categoryMap[item.name] = { id: item.id, quantity: 0 };
+            });
+
+            // Đếm số lượng xuất hiện của từng name trong file1 (annotations.category_id)
+            const idToName = {};
+            file1Data.categories.forEach(cat => {
+                idToName[cat.id] = cat.name;
+            });
+
+            file1Data.annotations.forEach(ann => {
+                const name = idToName[ann.category_id];
+                if (name && categoryMap[name]) {
+                    categoryMap[name].quantity += 1;
+                }
+            });
+
+            // Tạo dữ liệu cho Excel
+            const output = [];
+            for (const [name, value] of Object.entries(categoryMap)) {
+                output.push({
+                    name: name,
+                    id: value.id,
+                    quantity: value.quantity
+                });
+            }
+
+            // Tạo worksheet và export
+            const ws = XLSX.utils.json_to_sheet(output);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Export");
+            XLSX.writeFile(wb, "result.xlsx");
+        }
+    </script>
+</body>
+
+</html>

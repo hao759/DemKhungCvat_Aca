@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Đếm Category từ File JSON</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f4f4f4;
+        }
+
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+
+        pre {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #ccc;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Đếm Category từ File annotations</h1>
+    <input type="file" id="fileInput" accept=".json" />
+    <pre id="output">Vui lòng chọn file JSON...</pre>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+
+                    const list = [];
+                    const listImgId = [];
+
+                    // Lọc annotation
+                    for (const annotation of data.annotations) {
+                        if (!listImgId.includes(annotation.image_id) && annotation.category_id !== 31) {
+                            listImgId.push(annotation.image_id);
+                        }
+
+                        const category = data.categories.find(cat => cat.id === annotation.category_id);
+                        if (category) {
+                            list.push(category.name);
+                        }
+                    }
+
+                    // Đếm loại
+                    const counter = new Map();
+                    for (const name of list) {
+                        counter.set(name, (counter.get(name) || 0) + 1);
+                    }
+
+                    // Sắp xếp giảm dần theo số lượng
+                    const sorted = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
+
+                    let result = `Tổng số loại: ${sorted.length}\nSố lượng từng loại (giảm dần):\n`;
+                    for (const [name, count] of sorted) {
+                        result += `${name}: ${count}\n`;
+                    }
+
+                    document.getElementById('output').textContent = result;
+
+                } catch (err) {
+                    document.getElementById('output').textContent = 'Lỗi khi đọc file JSON: ' + err.message;
+                }
+            };
+
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+
+</html>
