@@ -32,6 +32,7 @@
         <button style="height: 60px;" onclick="window.location.href='mapNhan.html'">Trang Map Nhãn</button>
     </div>
     <input type="file" id="fileInput" accept=".json" />
+    <button style="opacity: 0;" style="height: 60px !important;" id="exportBtn">Xuất ra Excel</button>
     <pre id="output">Vui lòng chọn file JSON...</pre>
 
     <script>
@@ -83,6 +84,70 @@
             reader.readAsText(file);
         });
     </script>
+    <script>
+        let sorted = []; // Khai báo ngoài để dùng lại
+
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    const list = [];
+                    const listImgId = [];
+
+                    for (const annotation of data.annotations) {
+                        if (!listImgId.includes(annotation.image_id) && annotation.category_id !== 31) {
+                            listImgId.push(annotation.image_id);
+                        }
+
+                        const category = data.categories.find(cat => cat.id === annotation.category_id);
+                        if (category) {
+                            list.push(category.name);
+                        }
+                    }
+
+                    const counter = new Map();
+                    for (const name of list) {
+                        counter.set(name, (counter.get(name) || 0) + 1);
+                    }
+
+                    sorted = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
+
+                    let result = `Tổng số loại: ${sorted.length}\nSố lượng từng loại (giảm dần):\n`;
+                    for (const [name, count] of sorted) {
+                        result += `${name}: ${count}\n`;
+                    }
+
+                    document.getElementById('output').textContent = result;
+
+                    // Hiện nút export khi có dữ liệu
+                    // document.getElementById('exportBtn').style.display = 'inline-block';
+                    document.getElementById('exportBtn').style.opacity = '1';
+                    document.getElementById('exportBtn').style.height = '39px';
+
+                } catch (err) {
+                    document.getElementById('output').textContent = 'Lỗi khi đọc file JSON: ' + err.message;
+                }
+            };
+
+            reader.readAsText(file);
+        });
+
+        // Xử lý export Excel
+        document.getElementById('exportBtn').addEventListener('click', function () {
+            const worksheetData = sorted.map(([sku_code, quantity]) => ({ sku_code, quantity }));
+            const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Category Count");
+            XLSX.writeFile(workbook, "category_count.xlsx");
+        });
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 </body>
 
 </html>
