@@ -115,11 +115,13 @@
                     }
 
                     sorted = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
-
-                    let result = `Tổng số loại: ${sorted.length}\nSố lượng từng loại (giảm dần):\n`;
+                    let countKhung = 0
+                    let result = `Tổng số loại: ${sorted.length}\nSố lượng từng loại (giảm dần):\n\n`;
                     for (const [name, count] of sorted) {
                         result += `${name}: ${count}\n`;
+                        countKhung += count
                     }
+                    result = `---Tổng khung : ${countKhung} ------\n` + result
 
                     document.getElementById('output').textContent = result;
 
