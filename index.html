@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -139,6 +139,120 @@
         });
 
         // Xử lý export Excel
+        document.getElementById('exportBtn').addEventListener('click', function () {
+            const worksheetData = sorted.map(([Lable, quantity]) => ({ Lable, quantity }));
+            const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Category Count");
+            XLSX.writeFile(workbook, "category_count.xlsx");
+        });
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+</body>
+
+</html> -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Đếm Category từ File JSON</title>
+    <link rel="stylesheet" href="css.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f4f4f4;
+        }
+
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+
+        pre {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #ccc;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="row" style="display: flex;justify-content: space-between;">
+        <h1>Đếm Khung</h1>
+        <button style="height: 60px;" onclick="window.location.href='mapNhan.html'">Trang Map Nhãn</button>
+    </div>
+    <input type="file" id="fileInput" accept=".json" />
+    <button style="opacity: 0;" id="exportBtn">Xuất ra Excel</button>
+    <pre id="output">Vui lòng chọn file JSON...</pre>
+
+    <script>
+        let sorted = []; // để dùng cho export
+
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+
+                    const list = [];
+                    const listImgId = [];
+
+                    // Lọc annotation
+                    for (const annotation of data.annotations) {
+                        if (!listImgId.includes(annotation.image_id) && annotation.category_id !== 31) {
+                            listImgId.push(annotation.image_id);
+                        }
+
+                        const category = data.categories.find(cat => cat.id === annotation.category_id);
+                        if (category) {
+                            list.push(category.name);
+                        }
+                    }
+
+                    // Đếm loại
+                    const counter = new Map();
+                    for (const name of list) {
+                        counter.set(name, (counter.get(name) || 0) + 1);
+                    }
+
+                    // Sắp xếp giảm dần
+                    sorted = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
+
+                    // Tính tổng khung
+                    let countKhung = 0;
+                    for (const [, count] of sorted) {
+                        countKhung += count;
+                    }
+
+                    let result = `---Tổng khung : ${countKhung} ------\n`;
+                    result += `Tổng số loại: ${sorted.length}\nSố lượng từng loại (giảm dần):\n\n`;
+                    for (const [name, count] of sorted) {
+                        result += `${name}: ${count}\n`;
+                    }
+
+                    document.getElementById('output').textContent = result;
+
+                    // Hiện nút export
+                    document.getElementById('exportBtn').style.opacity = '1';
+                    document.getElementById('exportBtn').style.height = '39px';
+
+                } catch (err) {
+                    document.getElementById('output').textContent = 'Lỗi khi đọc file JSON: ' + err.message;
+                }
+            };
+
+            reader.readAsText(file);
+        });
+
+        // Export Excel
         document.getElementById('exportBtn').addEventListener('click', function () {
             const worksheetData = sorted.map(([Lable, quantity]) => ({ Lable, quantity }));
             const worksheet = XLSX.utils.json_to_sheet(worksheetData);
