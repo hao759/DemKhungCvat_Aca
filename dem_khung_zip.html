@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Đếm Khung từ File ZIP</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f4f4f4;
+        }
+
+        #dropZone {
+            border: 2px dashed #888;
+            padding: 30px;
+            text-align: center;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        #dropZone.dragover {
+            border-color: #4CAF50;
+            background: #eaffea;
+            color: #4CAF50;
+        }
+
+        pre {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #ccc;
+            white-space: pre-wrap;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #exportBtn {
+            opacity: 0;
+            height: 0;
+            transition: all 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Đếm Khung từ File ZIP</h1>
+    <div id="dropZone">Kéo file ZIP vào đây hoặc bấm để chọn (có thể chọn nhiều file)</div>
+    <input type="file" id="fileInput" accept=".zip" multiple />
+    <button id="exportBtn">Xuất ra Excel</button>
+    <pre id="output">Vui lòng kéo hoặc chọn file ZIP...</pre>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let sorted = [];
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleZipFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleZipFiles(e.target.files);
+        });
+
+        async function handleZipFiles(files) {
+            if (!files.length) return;
+
+            let allAnnotations = [];
+            let allCategories = [];
+
+            for (let file of files) {
+                try {
+                    const zip = await JSZip.loadAsync(file);
+                    const targetPath = Object.keys(zip.files).find(path =>
+                        path.toLowerCase().includes("annotations/instances_default.json")
+                    );
+
+                    if (!targetPath) {
+                        console.warn(`Không tìm thấy instances_default.json trong ${file.name}`);
+                        continue;
+                    }
+
+                    const content = await zip.file(targetPath).async("string");
+                    const data = JSON.parse(content);
+
+                    allAnnotations = allAnnotations.concat(data.annotations || []);
+                    allCategories = allCategories.concat(data.categories || []);
+                } catch (err) {
+                    console.error("Lỗi khi xử lý ZIP:", file.name, err);
+                }
+            }
+
+            processData(allAnnotations, allCategories);
+        }
+
+        function processData(annotations, categories) {
+            const list = [];
+            const listImgId = [];
+
+            for (const annotation of annotations) {
+                if (!listImgId.includes(annotation.image_id) && annotation.category_id !== 31) {
+                    listImgId.push(annotation.image_id);
+                }
+
+                const category = categories.find(cat => cat.id === annotation.category_id);
+                if (category) {
+                    list.push(category.name);
+                }
+            }
+
+            const counter = new Map();
+            for (const name of list) {
+                counter.set(name, (counter.get(name) || 0) + 1);
+            }
+
+            sorted = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
+
+            let countKhung = 0;
+            for (const [, count] of sorted) {
+                countKhung += count;
+            }
+
+            let result = `---Tổng khung : ${countKhung} ------\n`;
+            result += `Tổng số loại: ${sorted.length}\nSố lượng từng loại (giảm dần):\n\n`;
+            for (const [name, count] of sorted) {
+                result += `${name}: ${count}\n`;
+            }
+
+            document.getElementById('output').textContent = result;
+            document.getElementById('exportBtn').style.opacity = '1';
+            document.getElementById('exportBtn').style.height = '39px';
+        }
+
+        document.getElementById('exportBtn').addEventListener('click', function () {
+            const worksheetData = sorted.map(([Lable, quantity]) => ({ Lable, quantity }));
+            const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Category Count");
+            XLSX.writeFile(workbook, "category_count.xlsx");
+        });
+    </script>
+</body>
+
+</html>
