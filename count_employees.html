@@ -86,15 +86,20 @@
                 }
             });
 
+            // Sắp xếp theo bảng chữ cái
+            const sortedEntries = Object.entries(totals).sort((a, b) =>
+                a[0].localeCompare(b[0], 'vi', { sensitivity: 'base' })
+            );
+
             let html = "<table><tr><th>Tên Nhân Viên</th><th>Tổng Số Khung</th></tr>";
             let totalFrames = 0;
-            for (const [name, total] of Object.entries(totals)) {
+            sortedEntries.forEach(([name, total]) => {
                 html += `<tr><td>${name}</td><td>${total}</td></tr>`;
                 totalFrames += total;
-            }
+            });
             html += "</table>";
 
-            const totalEmployees = Object.keys(totals).length;
+            const totalEmployees = sortedEntries.length;
 
             html += `<div class="summary">Số lượng nhân viên: ${totalEmployees}</div>`;
             html += `<div class="summary">Tổng số khung mọi người: ${totalFrames}</div>`;
@@ -102,6 +107,7 @@
             document.getElementById("result").innerHTML = html;
         }
     </script>
+
 
 </body>
 
