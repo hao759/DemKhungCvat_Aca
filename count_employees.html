@@ -86,10 +86,13 @@
                 }
             });
 
-            // Sắp xếp theo bảng chữ cái
-            const sortedEntries = Object.entries(totals).sort((a, b) =>
-                a[0].localeCompare(b[0], 'vi', { sensitivity: 'base' })
-            );
+            // Sắp xếp theo từ cuối (tên riêng)
+            const sortedEntries = Object.entries(totals).sort((a, b) => {
+                const lastA = a[0].split(" ").pop().toLowerCase();
+                const lastB = b[0].split(" ").pop().toLowerCase();
+                return lastA.localeCompare(lastB, 'vi', { sensitivity: 'base' }) ||
+                    a[0].localeCompare(b[0], 'vi', { sensitivity: 'base' });
+            });
 
             let html = "<table><tr><th>Tên Nhân Viên</th><th>Tổng Số Khung</th></tr>";
             let totalFrames = 0;
