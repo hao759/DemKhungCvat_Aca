@@ -50,7 +50,17 @@
 </head>
 
 <body>
-    <h1>Lấy số khung team khoanh</h1>
+
+    <div class="row" style="display: flex; justify-content: space-between;">
+        <h1>Lấy số khung team khoanh</h1>
+        <!-- <button style="height: 60px;" onclick="window.open('mapNhan.html', '_blank', 'noopener,noreferrer')">Trang Map
+            Nhãn</button> -->
+        <!-- <button style="height: 60px;" onclick="window.open('dem_khung_main.html', '_blank', 'noopener,noreferrer')">Đếm
+            nhìu file</button> -->
+        <button style="height: 60px;"
+            onclick="window.open('thong_ke_khung.html', '_blank', 'noopener,noreferrer')">Thống kê khung</button>
+    </div>
+
     <div id="dropZone">Kéo file ZIP vào đây hoặc bấm để chọn (có thể chọn nhiều file)</div>
     <input type="file" id="fileInput" accept=".zip" multiple />
     <button id="exportBtn">Xuất ra Excel</button>
