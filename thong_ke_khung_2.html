@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>So sánh số khung</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        textarea {
+            width: 45%;
+            height: 200px;
+            margin: 5px;
+            vertical-align: top;
+        }
+
+        button {
+            padding: 8px 16px;
+            margin: 10px 5px;
+            cursor: pointer;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+            width: 60%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #eee;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>So sánh số khung hôm nay và hôm qua</h2>
+
+    <textarea id="yesterday" placeholder="Nhập dữ liệu hôm qua..."></textarea>
+    <textarea id="today" placeholder="Nhập dữ liệu hôm nay..."></textarea>
+    <br>
+    <button onclick="compare()">So sánh</button>
+    <button onclick="copyTable()">Copy</button>
+
+    <h3>Kết quả:</h3>
+    <div id="result"></div>
+
+    <script>
+        function parseData(text) {
+            let map = {};
+            text.split("\n").forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                let parts = line.split(":");
+                if (parts.length >= 2) {
+                    let name = parts[0].trim();
+                    let value = parseInt(parts[1].trim()) || 0;
+                    map[name] = value;
+                }
+            });
+            return map;
+        }
+
+        function cleanTaskName(fullName) {
+            // Bỏ phần tên_nv, chỉ giữ lại task
+            // ví dụ: "tenNV_taskABC" -> "taskABC"
+            let parts = fullName.split("_");
+            if (parts.length > 1) {
+                return parts.slice(1).join("_");
+            }
+            return fullName;
+        }
+
+        function compare() {
+            let yesterdayData = parseData(document.getElementById("yesterday").value);
+            let todayData = parseData(document.getElementById("today").value);
+
+            let resultTable = `<table>
+                                <tr><th>Task</th><th>Chênh lệch</th></tr>`;
+
+            for (let name in todayData) {
+                let taskName = cleanTaskName(name);
+                if (yesterdayData.hasOwnProperty(name)) {
+                    let diff = todayData[name] - yesterdayData[name];
+                    resultTable += `<tr><td>${taskName}</td><td>${diff}</td></tr>`;
+                } else {
+                    resultTable += `<tr><td>${taskName}</td><td>${todayData[name]}</td></tr>`;
+                }
+            }
+
+            resultTable += `</table>`;
+            document.getElementById("result").innerHTML = resultTable;
+        }
+
+        function copyTable() {
+            let table = document.querySelector("#result table");
+            if (!table) return;
+
+            let rows = [];
+            table.querySelectorAll("tr").forEach(tr => {
+                let cells = [];
+                tr.querySelectorAll("th,td").forEach(td => {
+                    cells.push(td.innerText);
+                });
+                rows.push(cells.join("\t")); // tab để excel tự tách cột
+            });
+
+            let text = rows.join("\n");
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Đã copy dữ liệu bảng!");
+            });
+        }
+    </script>
+
+</body>
+
+</html>
