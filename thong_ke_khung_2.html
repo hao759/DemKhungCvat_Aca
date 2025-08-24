@@ -1,128 +1,206 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>So sánh số khung</title>
+    <meta charset="UTF-8" />
+    <title>Đếm Khung từ File ZIP Tổng</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 20px;
+            margin: 40px;
+            background: #f4f4f4;
         }
 
-        textarea {
-            width: 45%;
-            height: 200px;
-            margin: 5px;
-            vertical-align: top;
+        #dropZone {
+            border: 2px dashed #888;
+            padding: 30px;
+            text-align: center;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            color: #666;
+            height: 90px;
         }
 
-        button {
-            padding: 8px 16px;
-            margin: 10px 5px;
-            cursor: pointer;
+        #dropZone.dragover {
+            border-color: #4CAF50;
+            background: #eaffea;
+            color: #4CAF50;
         }
 
         table {
             border-collapse: collapse;
-            margin-top: 10px;
+            background: #fff;
+            margin-top: 20px;
             width: 60%;
         }
 
         th,
         td {
             border: 1px solid #ccc;
-            padding: 6px 10px;
+            padding: 8px 12px;
             text-align: left;
         }
 
         th {
             background: #eee;
         }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #exportBtn,
+        #copyBtn {
+            opacity: 0;
+            height: 0;
+            margin: 10px 5px;
+            padding: 10px 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
     </style>
 </head>
 
 <body>
 
-    <h2>So sánh số khung hôm nay và hôm qua</h2>
+    <div class="row" style="display: flex; justify-content: space-between;">
+        <h1>Lấy số khung team khoanh</h1>
+        <button style="height: 60px;"
+            onclick="window.open('thong_ke_khung.html', '_blank', 'noopener,noreferrer')">Thống kê khung</button>
+    </div>
 
-    <textarea id="yesterday" placeholder="Nhập dữ liệu hôm qua..."></textarea>
-    <textarea id="today" placeholder="Nhập dữ liệu hôm nay..."></textarea>
-    <br>
-    <button onclick="compare()">So sánh</button>
-    <button onclick="copyTable()">Copy</button>
+    <div id="dropZone">Kéo file ZIP vào đây hoặc bấm để chọn (có thể chọn nhiều file)</div>
+    <input type="file" id="fileInput" accept=".zip" multiple />
+    <button id="exportBtn">Xuất ra Excel</button>
+    <button id="copyBtn">Copy</button>
+    <div id="output">Vui lòng kéo hoặc chọn file ZIP...</div>
 
-    <h3>Kết quả:</h3>
-    <div id="result"></div>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
-        function parseData(text) {
-            let map = {};
-            text.split("\n").forEach(line => {
-                line = line.trim();
-                if (!line) return;
-                let parts = line.split(":");
-                if (parts.length >= 2) {
-                    let name = parts[0].trim();
-                    let value = parseInt(parts[1].trim()) || 0;
-                    map[name] = value;
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const output = document.getElementById('output');
+        const exportBtn = document.getElementById('exportBtn');
+        const copyBtn = document.getElementById('copyBtn');
+
+        let results = [];
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleZipFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleZipFiles(e.target.files);
+        });
+
+        async function handleZipFiles(files) {
+            if (!files.length) return;
+
+            output.textContent = "Đang xử lý...\n";
+            results = [];
+
+            for (let file of files) {
+                try {
+                    const zip = await JSZip.loadAsync(file);
+                    const targetPath = Object.keys(zip.files).find(path =>
+                        path.toLowerCase().includes("annotations/instances_default.json")
+                    );
+
+                    if (!targetPath) {
+                        results.push({ name: removeZipExt(file.name), count: 0, note: "Không tìm thấy file JSON" });
+                        continue;
+                    }
+
+                    const content = await zip.file(targetPath).async("string");
+                    const data = JSON.parse(content);
+
+                    let countKhung = 0;
+                    for (const annotation of (data.annotations || [])) {
+                        if (annotation.category_id !== 31) {
+                            countKhung++;
+                        }
+                    }
+
+                    results.push({ name: removeZipExt(file.name), count: countKhung });
+
+                } catch (err) {
+                    results.push({ name: removeZipExt(file.name), count: 0, note: "Lỗi đọc file" });
+                }
+            }
+
+            displayResults();
+        }
+
+        function removeZipExt(filename) {
+            return filename.replace(/\.zip$/i, "");
+        }
+
+        function displayResults() {
+            if (!results.length) return;
+
+            let html = `<table>
+                            <tr><th>Tên File</th><th>Số Khung</th></tr>`;
+            results.forEach(r => {
+                if (r.note) {
+                    html += `<tr><td>${r.name}</td><td>${r.note}</td></tr>`;
+                } else {
+                    html += `<tr><td>${r.name}</td><td>${r.count}</td></tr>`;
                 }
             });
-            return map;
+            html += `</table>`;
+            output.innerHTML = html;
+
+            exportBtn.style.opacity = '1';
+            exportBtn.style.height = '39px';
+            copyBtn.style.opacity = '1';
+            copyBtn.style.height = '39px';
         }
 
-        function cleanTaskName(fullName) {
-            // Bỏ phần tên_nv, chỉ giữ lại task
-            // ví dụ: "tenNV_taskABC" -> "taskABC"
-            let parts = fullName.split("_");
-            if (parts.length > 1) {
-                return parts.slice(1).join("_");
-            }
-            return fullName;
-        }
+        exportBtn.addEventListener('click', function () {
+            const worksheetData = results.map(r => ({
+                "Tên File": r.name,
+                "Số Khung": r.count || r.note || 0
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Khung Count");
+            XLSX.writeFile(workbook, "khung_count.xlsx");
+        });
 
-        function compare() {
-            let yesterdayData = parseData(document.getElementById("yesterday").value);
-            let todayData = parseData(document.getElementById("today").value);
-
-            let resultTable = `<table>
-                                <tr><th>Task</th><th>Chênh lệch</th></tr>`;
-
-            for (let name in todayData) {
-                let taskName = cleanTaskName(name);
-                if (yesterdayData.hasOwnProperty(name)) {
-                    let diff = todayData[name] - yesterdayData[name];
-                    resultTable += `<tr><td>${taskName}</td><td>${diff}</td></tr>`;
-                } else {
-                    resultTable += `<tr><td>${taskName}</td><td>${todayData[name]}</td></tr>`;
-                }
-            }
-
-            resultTable += `</table>`;
-            document.getElementById("result").innerHTML = resultTable;
-        }
-
-        function copyTable() {
-            let table = document.querySelector("#result table");
+        copyBtn.addEventListener('click', function () {
+            let table = document.querySelector("#output table");
             if (!table) return;
 
             let rows = [];
-            table.querySelectorAll("tr").forEach(tr => {
+            table.querySelectorAll("tr").forEach((tr, index) => {
+                if (index === 0) return; // bỏ dòng header
                 let cells = [];
-                tr.querySelectorAll("th,td").forEach(td => {
+                tr.querySelectorAll("td").forEach(td => {
                     cells.push(td.innerText);
                 });
-                rows.push(cells.join("\t")); // tab để excel tự tách cột
+                rows.push(cells.join("\t")); // tab -> Excel tự tách cột
             });
 
-            let text = rows.join("\n");
-
-            navigator.clipboard.writeText(text).then(() => {
-                alert("Đã copy dữ liệu bảng!");
+            navigator.clipboard.writeText(rows.join("\n")).then(() => {
+                alert("Đã copy dữ liệu bảng (không gồm tiêu đề)!");
             });
-        }
+        });
     </script>
-
 </body>
 
 </html>
