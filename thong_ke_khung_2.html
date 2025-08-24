@@ -46,6 +46,11 @@
             background: #eee;
         }
 
+        tr.highlight {
+            background: #fffa9e;
+            /* vàng nhạt */
+        }
+
         input[type="file"] {
             display: none;
         }
@@ -153,13 +158,22 @@
         function displayResults() {
             if (!results.length) return;
 
+            // đếm tần suất số khung
+            let countMap = {};
+            results.forEach(r => {
+                if (!r.note) {
+                    countMap[r.count] = (countMap[r.count] || 0) + 1;
+                }
+            });
+
             let html = `<table>
                             <tr><th>Tên File</th><th>Số Khung</th></tr>`;
             results.forEach(r => {
+                let highlight = (!r.note && countMap[r.count] >= 2) ? "class='highlight'" : "";
                 if (r.note) {
-                    html += `<tr><td>${r.name}</td><td>${r.note}</td></tr>`;
+                    html += `<tr><td ${highlight}>${r.name}</td><td ${highlight}>${r.note}</td></tr>`;
                 } else {
-                    html += `<tr><td>${r.name}</td><td>${r.count}</td></tr>`;
+                    html += `<tr ${highlight}><td>${r.name}</td><td>${r.count}</td></tr>`;
                 }
             });
             html += `</table>`;
