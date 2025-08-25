@@ -207,13 +207,25 @@
                 tr.querySelectorAll("td").forEach(td => {
                     cells.push(td.innerText);
                 });
-                rows.push(cells.join("\t")); // tab -> Excel tự tách cột
+                rows.push(cells.join("\t"));
             });
 
             navigator.clipboard.writeText(rows.join("\n")).then(() => {
-                // alert("Đã copy dữ liệu bảng (không gồm tiêu đề)!");
+                // Cách 1: đổi text nút
+                let oldText = copyBtn.textContent;
+                copyBtn.textContent = "✅ Đã copy!";
+                setTimeout(() => copyBtn.textContent = oldText, 2000);
+
+                // Cách 2: hiện thông báo nhỏ
+                // let msg = document.createElement("div");
+                // msg.textContent = "✅ Đã copy!";
+                // msg.style.color = "green";
+                // msg.style.marginTop = "10px";
+                // copyBtn.insertAdjacentElement("afterend", msg);
+                // setTimeout(() => msg.remove(), 2000);
             });
         });
+
     </script>
 </body>
 
