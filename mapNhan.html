@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -92,6 +92,207 @@
                     console.error(e);
                 }
             });
+        }
+
+        function generateExcel() {
+            const categoryMap = {};
+            file2Data.forEach(item => {
+                categoryMap[item.name] = { id: item.id, quantity: 0 };
+            });
+
+            const idToName = {};
+            file1Data.categories.forEach(cat => {
+                idToName[cat.id] = cat.name;
+            });
+
+            file1Data.annotations.forEach(ann => {
+                const name = idToName[ann.category_id];
+                if (name && categoryMap[name]) {
+                    categoryMap[name].quantity += 1;
+                }
+            });
+
+            const output = [];
+            for (const [name, value] of Object.entries(categoryMap)) {
+                output.push({
+                    Lable: name,
+                    id: value.id,
+                    quantity: value.quantity
+                });
+            }
+
+            const ws = XLSX.utils.json_to_sheet(output);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Export");
+            XLSX.writeFile(wb, "result.xlsx");
+        }
+    </script>
+</body>
+
+</html> -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Export Excel từ JSON</title>
+    <link rel="stylesheet" href="css.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        textarea {
+            margin: 10px 0;
+            width: 100%;
+            font-family: monospace;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-top: 10px;
+        }
+
+        #dropZone {
+            border: 2px dashed #666;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            background: #fafafa;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Map Id + Số Khung JSON</h2>
+
+    <!-- Vùng kéo thả file -->
+    <div id="dropZone">
+        Kéo thả file <b>instances_default.json</b> hoặc <b>ZIP</b> chứa nó trong thư mục <code>annotations/</code>
+    </div>
+
+    <label>Danh sách khung :
+        <textarea id="file2Input" rows="18" placeholder='[
+  {
+    "name": "PS_BCR_4D_CHAM_SOC_NUOU_KHOE",
+    "id": 1240,
+    "color": "#cbd7f2",
+    "type": "any",
+    "attributes": []
+  },
+  {
+    "name": "PS_BCR_4D_KHANG_KHUAN",
+    "id": 1241,
+    "color": "#db6558",
+    "type": "any",
+    "attributes": []
+  },
+  {
+    "name": "SUNLIGHT_NRC_GUNG_TUI_750G",
+    "id": 2546,
+    "color": "#44c32c",
+    "type": "any",
+    "attributes": []
+  }
+]'></textarea>
+    </label><br />
+
+    <button onclick="processFiles()">Xuất Excel</button>
+
+    <script>
+        let file1Data, file2Data;
+
+        // Drag & Drop xử lý
+        const dropZone = document.getElementById("dropZone");
+
+        ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        ["dragenter", "dragover"].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.style.background = "#e0ffe0";
+            });
+        });
+
+        ["dragleave", "drop"].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.style.background = "#fafafa";
+            });
+        });
+
+        dropZone.addEventListener("drop", async (e) => {
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+
+            if (file.name.endsWith(".json")) {
+                readJSONFile(file, (data) => {
+                    file1Data = data;
+                    alert("Đã nạp file JSON: " + file.name);
+                });
+            } else if (file.name.endsWith(".zip")) {
+                await handleZip(file);
+            } else {
+                alert("Chỉ hỗ trợ file .json hoặc .zip!");
+            }
+        });
+
+        function readJSONFile(file, callback) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    callback(data);
+                } catch (err) {
+                    alert("File JSON không hợp lệ!");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function handleZip(file) {
+            try {
+                const jszip = await JSZip.loadAsync(file);
+
+                // Tìm file "annotations/instances_default.json"
+                const jsonFile = jszip.file("annotations/instances_default.json");
+
+                if (jsonFile) {
+                    const content = await jsonFile.async("string");
+                    file1Data = JSON.parse(content);
+                    alert("Đã nạp annotations/instances_default.json từ ZIP");
+                } else {
+                    alert("Không tìm thấy annotations/instances_default.json trong ZIP");
+                }
+            } catch (err) {
+                alert("Giải nén ZIP thất bại!");
+            }
+        }
+
+        // Nút Xuất Excel
+        function processFiles() {
+            if (!file1Data) {
+                alert("Chưa có dữ liệu từ file JSON/ZIP!");
+                return;
+            }
+
+            const inputText = document.getElementById("file2Input").value;
+            try {
+                file2Data = JSON.parse(inputText);
+                generateExcel();
+            } catch (e) {
+                alert("Dữ liệu nhập tay không phải JSON hợp lệ!");
+                console.error(e);
+            }
         }
 
         function generateExcel() {
