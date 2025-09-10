@@ -293,6 +293,7 @@
 
             let allAnnotations = [];
             let allCategories = [];
+            let fileNames = [];
 
             for (let file of files) {
                 try {
@@ -311,25 +312,27 @@
 
                     allAnnotations = allAnnotations.concat(data.annotations || []);
                     allCategories = allCategories.concat(data.categories || []);
+                    fileNames.push(file.name); // lưu tên file
                 } catch (err) {
                     console.error("Lỗi khi xử lý ZIP:", file.name, err);
                 }
             }
 
-            processData(allAnnotations, allCategories);
+            processData(allAnnotations, allCategories, fileNames);
         }
 
-        function processData(annotations, categories) {
+
+
+
+        function processData(annotations, categories, fileNames) {
             const counter = new Map();
 
-            // Khởi tạo tất cả nhãn = 0
             for (const cat of categories) {
                 counter.set(cat.name, 0);
             }
 
-            // Cộng thêm nếu annotation có category
             for (const annotation of annotations) {
-                if (annotation.category_id !== 31) { // bỏ qua id 31
+                if (annotation.category_id !== 31) {
                     const category = categories.find(cat => cat.id === annotation.category_id);
                     if (category) {
                         counter.set(category.name, (counter.get(category.name) || 0) + 1);
@@ -337,17 +340,16 @@
                 }
             }
 
-            // Sắp xếp giảm dần theo số lượng
             sorted = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
 
-            // Tổng số khung
             let countKhung = 0;
             for (const [, count] of sorted) {
                 countKhung += count;
             }
 
             // Hiển thị kết quả
-            let result = `---Tổng khung : ${countKhung} ------\n`;
+            let result = `Các file ZIP đã chọn:\n${fileNames.join("\n")}\n\n`;
+            result += `---Tổng khung : ${countKhung} ------\n`;
             result += `Tổng số loại: ${sorted.length}\nSố lượng từng loại (giảm dần):\n\n`;
             for (const [name, count] of sorted) {
                 result += `${name}: ${count}\n`;
@@ -357,14 +359,6 @@
             document.getElementById('exportBtn').style.opacity = '1';
             document.getElementById('exportBtn').style.height = '39px';
         }
-
-        document.getElementById('exportBtn').addEventListener('click', function () {
-            const worksheetData = sorted.map(([Lable, quantity]) => ({ Lable, quantity }));
-            const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Category Count");
-            XLSX.writeFile(workbook, "category_count.xlsx");
-        });
     </script>
 </body>
 

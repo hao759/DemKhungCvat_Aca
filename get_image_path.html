@@ -152,7 +152,8 @@
         <div class="card">
             <h1>Xuất <code>photo_path</code> từ JSON → Excel</h1>
             <p class="desc">Tải (hoặc kéo thả) file JSON chứa danh sách đối tượng, mình sẽ trích cột
-                <code>photo_path</code> và tạo file <strong>photo_paths.xlsx</strong>.</p>
+                <code>photo_path</code> và tạo file <strong>photo_paths.xlsx</strong>.
+            </p>
 
             <div id="dropzone" class="zone" tabindex="0" role="button" aria-label="Chọn hoặc kéo thả file JSON">
                 <span>📄 Kéo & thả file JSON vào đây hoặc</span>
@@ -289,11 +290,22 @@
         // Xuất Excel
         btnExport.addEventListener('click', () => {
             if (!rows.length) return;
+
+            // tạo ngày hiện tại dạng yyyymmdd
+            const now = new Date();
+            const yyyymmdd = now.getFullYear().toString() +
+                String(now.getMonth() + 1).padStart(2, '0') +
+                String(now.getDate()).padStart(2, '0');
+
+            // tạo file excel
             const ws = XLSX.utils.json_to_sheet(rows);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'photo_path');
-            XLSX.writeFile(wb, 'photo_paths.xlsx');
+
+            // xuất file với tên mong muốn
+            XLSX.writeFile(wb, `image_ken_${yyyymmdd}.xlsx`);
         });
+
     </script>
 </body>
 
