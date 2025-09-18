@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Split XLSX -> CSV (no header)</title>
+    <style>
+        body {
+            font-family: system-ui, Arial;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 16px;
+            line-height: 1.5;
+            color: #222;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .row {
+            margin: 10px 0;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        label {
+            min-width: 180px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            min-width: 220px;
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: none;
+            background: #0b5cff;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        .log {
+            margin-top: 16px;
+            max-height: 280px;
+            overflow: auto;
+            background: #f6f8fa;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .log div {
+            margin-bottom: 4px;
+        }
+    </style>
+
+    <!-- SheetJS và JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+</head>
+
+<body>
+    <h1>Chia XLSX thành nhiều CSV (không header)</h1>
+    <p>Tải file Excel (không có dòng header), nhập số hàng mỗi file, tool sẽ cắt ra nhiều CSV y hệt.</p>
+
+    <div class="row">
+        <label for="xlsxFile">Chọn file .xlsx</label>
+        <input id="xlsxFile" type="file" accept=".xlsx,.xls" />
+    </div>
+
+    <div class="row">
+        <label for="prefix">Tiền tố tên file</label>
+        <input id="prefix" type="text" value="output" />
+    </div>
+
+    <div class="row">
+        <label for="rowsPerFile">Số hàng / file</label>
+        <input id="rowsPerFile" type="number" min="1" value="150" />
+    </div>
+
+    <div class="row">
+        <label for="startIndex">Số thứ tự bắt đầu</label>
+        <input id="startIndex" type="number" min="0" value="1" />
+    </div>
+
+    <div class="row">
+        <button id="processBtn">Xử lý & Tải ZIP</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script>
+        (function () {
+            const xlsxFile = document.getElementById('xlsxFile');
+            const prefixInput = document.getElementById('prefix');
+            const rowsPerFileInput = document.getElementById('rowsPerFile');
+            const startIndexInput = document.getElementById('startIndex');
+            const processBtn = document.getElementById('processBtn');
+            const logEl = document.getElementById('log');
+
+            function log(msg, isErr = false) {
+                const p = document.createElement('div');
+                p.textContent = msg;
+                p.style.color = isErr ? 'crimson' : '#222';
+                logEl.appendChild(p);
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            function splitArray(arr, size) {
+                const out = [];
+                for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+                return out;
+            }
+
+            function arrayToCSV(rows) {
+                return rows.map(r => r.map(v => {
+                    const s = (v ?? '').toString();
+                    if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+                        return '"' + s.replace(/"/g, '""') + '"';
+                    }
+                    return s;
+                }).join(",")).join("\r\n");
+            }
+
+            async function processFile(file) {
+                if (!file) { log('⚠️ Chưa chọn file!', true); return; }
+                try {
+                    log('Đang đọc file...');
+                    const data = await file.arrayBuffer();
+                    const workbook = XLSX.read(data, { type: "array" });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                    if (rows.length === 0) { log('⚠️ File trống!', true); return; }
+
+                    // Không có header -> dùng toàn bộ rows
+                    const dataRows = rows;
+                    log(`Tổng cộng ${dataRows.length} hàng dữ liệu.`);
+
+                    const perFile = parseInt(rowsPerFileInput.value, 10);
+                    const startSeq = parseInt(startIndexInput.value, 10) || 0;
+                    const parts = splitArray(dataRows, perFile);
+
+                    log(`Sẽ tạo ${parts.length} file CSV.`);
+
+                    const zip = new JSZip();
+                    for (let i = 0; i < parts.length; ++i) {
+                        const seq = startSeq + i;
+                        const safePrefix = (prefixInput.value || 'output').replace(/[^a-zA-Z0-9_\-]/g, '_');
+                        const filename = `${safePrefix}_${seq}.csv`;
+                        const csv = arrayToCSV(parts[i]);
+                        zip.file(filename, csv);
+                        log(`✔️ Tạo: ${filename} (${parts[i].length} hàng)`);
+                    }
+
+                    // báo file cuối cùng
+                    const lastFileRows = parts[parts.length - 1].length;
+                    log(`👉 File cuối cùng có ${lastFileRows} hàng.`);
+
+                    // Xuất zip
+                    log('Đang nén zip...');
+                    const content = await zip.generateAsync({ type: "blob" });
+                    const blobUrl = URL.createObjectURL(content);
+                    const a = document.createElement('a');
+                    const timeStr = new Date().toISOString().replace(/[:.]/g, '-');
+                    a.href = blobUrl;
+                    a.download = `${(prefixInput.value || 'output')}_split_${timeStr}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(blobUrl);
+                    log('✅ Hoàn tất, ZIP đã tải xuống.');
+                } catch (err) {
+                    console.error(err);
+                    log('Lỗi: ' + (err.message || err), true);
+                }
+            }
+
+            processBtn.addEventListener('click', async () => {
+                logEl.innerHTML = ''; // clear log
+                processBtn.disabled = true;
+                await processFile(xlsxFile.files[0]);
+                processBtn.disabled = false;
+            });
+
+        })();
+    </script>
+</body>
+
+</html>
