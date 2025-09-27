@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>So sánh số khung</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        textarea {
+            width: 45%;
+            height: 200px;
+            margin: 5px;
+            vertical-align: top;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px 0;
+        }
+
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>So sánh số khung hôm nay và hôm qua</h2>
+
+    <textarea id="yesterday" placeholder="Nhập dữ liệu hôm qua..."></textarea>
+    <textarea id="today" placeholder="Nhập dữ liệu hôm nay..."></textarea>
+    <br>
+    <button onclick="compare()">So sánh</button>
+
+    <h3>Kết quả:</h3>
+    <pre id="result"></pre>
+
+    <script>
+        function parseData(text) {
+            let map = {};
+            text.split("\n").forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                let parts = line.split(":");
+                if (parts.length >= 2) {
+                    let name = parts[0].trim();
+                    let value = parseInt(parts[1].trim()) || 0;
+                    map[name] = value;
+                }
+            });
+            return map;
+        }
+
+        function compare() {
+            let yesterdayData = parseData(document.getElementById("yesterday").value);
+            let todayData = parseData(document.getElementById("today").value);
+
+            let resultLines = [];
+
+            for (let name in todayData) {
+                if (yesterdayData.hasOwnProperty(name)) {
+                    let diff = todayData[name] - yesterdayData[name];
+                    resultLines.push(`${name} : ${diff}`);
+                } else {
+                    resultLines.push(`${name} : ${todayData[name]}`);
+                }
+            }
+
+            document.getElementById("result").textContent = resultLines.join("\n");
+        }
+    </script>
+
+</body>
+
+</html>

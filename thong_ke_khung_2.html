@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Đếm Khung từ File ZIP Tổng</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f4f4f4;
+        }
+
+        #dropZone {
+            border: 2px dashed #888;
+            padding: 30px;
+            text-align: center;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            color: #666;
+            height: 90px;
+        }
+
+        #dropZone.dragover {
+            border-color: #4CAF50;
+            background: #eaffea;
+            color: #4CAF50;
+        }
+
+        table {
+            border-collapse: collapse;
+            background: #fff;
+            margin-top: 20px;
+            width: 60%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        tr.highlight {
+            background: #fffa9e;
+            /* vàng nhạt */
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #exportBtn,
+        #copyBtn {
+            opacity: 0;
+            height: 0;
+            margin: 10px 5px;
+            padding: 10px 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="row" style="display: flex; justify-content: space-between;">
+        <h1>Lấy số khung team khoanh</h1>
+        <button style="height: 60px;"
+            onclick="window.open('thong_ke_khung.html', '_blank', 'noopener,noreferrer')">Thống kê khung</button>
+    </div>
+
+    <div id="dropZone">Kéo file ZIP vào đây hoặc bấm để chọn (có thể chọn nhiều file)</div>
+    <input type="file" id="fileInput" accept=".zip" multiple />
+    <button id="exportBtn">Xuất ra Excel</button>
+    <button id="copyBtn">Copy</button>
+    <div id="output">Vui lòng kéo hoặc chọn file ZIP...</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const output = document.getElementById('output');
+        const exportBtn = document.getElementById('exportBtn');
+        const copyBtn = document.getElementById('copyBtn');
+
+        let results = [];
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleZipFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleZipFiles(e.target.files);
+        });
+
+        async function handleZipFiles(files) {
+            if (!files.length) return;
+
+            output.textContent = "Đang xử lý...\n";
+            results = [];
+
+            for (let file of files) {
+                try {
+                    const zip = await JSZip.loadAsync(file);
+                    const targetPath = Object.keys(zip.files).find(path =>
+                        path.toLowerCase().includes("annotations/instances_default.json")
+                    );
+
+                    if (!targetPath) {
+                        results.push({ name: removeZipExt(file.name), count: 0, note: "Không tìm thấy file JSON" });
+                        continue;
+                    }
+
+                    const content = await zip.file(targetPath).async("string");
+                    const data = JSON.parse(content);
+
+                    let countKhung = 0;
+                    for (const annotation of (data.annotations || [])) {
+                        // if (annotation.category_id !== 31) {
+                        countKhung++;
+                        //  }
+                    }
+
+                    results.push({ name: removeZipExt(file.name), count: countKhung });
+
+                } catch (err) {
+                    results.push({ name: removeZipExt(file.name), count: 0, note: "Lỗi đọc file" });
+                }
+            }
+
+            displayResults();
+        }
+
+        function removeZipExt(filename) {
+            return filename.replace(/\.zip$/i, "");
+        }
+
+        function displayResults() {
+            if (!results.length) return;
+
+            // đếm tần suất số khung
+            let countMap = {};
+            results.forEach(r => {
+                if (!r.note) {
+                    countMap[r.count] = (countMap[r.count] || 0) + 1;
+                }
+            });
+
+            let html = `<table>
+                            <tr><th>Tên File</th><th>Số Khung</th></tr>`;
+            results.forEach(r => {
+                let highlight = (!r.note && countMap[r.count] >= 2) ? "class='highlight'" : "";
+                if (r.note) {
+                    html += `<tr><td ${highlight}>${r.name}</td><td ${highlight}>${r.note}</td></tr>`;
+                } else {
+                    html += `<tr ${highlight}><td>${r.name}</td><td>${r.count}</td></tr>`;
+                }
+            });
+            html += `</table>`;
+            output.innerHTML = html;
+
+            exportBtn.style.opacity = '1';
+            exportBtn.style.height = '39px';
+            copyBtn.style.opacity = '1';
+            copyBtn.style.height = '39px';
+        }
+
+        exportBtn.addEventListener('click', function () {
+            const worksheetData = results.map(r => ({
+                "Tên File": r.name,
+                "Số Khung": r.count || r.note || 0
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Khung Count");
+            XLSX.writeFile(workbook, "khung_count.xlsx");
+        });
+
+        copyBtn.addEventListener('click', function () {
+            let table = document.querySelector("#output table");
+            if (!table) return;
+
+            let rows = [];
+            table.querySelectorAll("tr").forEach((tr, index) => {
+                if (index === 0) return; // bỏ dòng header
+                let cells = [];
+                tr.querySelectorAll("td").forEach(td => {
+                    cells.push(td.innerText);
+                });
+                rows.push(cells.join("\t"));
+            });
+
+            navigator.clipboard.writeText(rows.join("\n")).then(() => {
+                // Cách 1: đổi text nút
+                let oldText = copyBtn.textContent;
+                copyBtn.textContent = "✅ Đã copy!";
+                setTimeout(() => copyBtn.textContent = oldText, 2000);
+
+                // Cách 2: hiện thông báo nhỏ
+                // let msg = document.createElement("div");
+                // msg.textContent = "✅ Đã copy!";
+                // msg.style.color = "green";
+                // msg.style.marginTop = "10px";
+                // copyBtn.insertAdjacentElement("afterend", msg);
+                // setTimeout(() => msg.remove(), 2000);
+            });
+        });
+
+    </script>
+</body>
+
+</html>
