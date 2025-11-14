@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -106,6 +106,146 @@
             });
 
             document.getElementById("result").textContent = result;
+        }
+    </script>
+
+</body>
+
+</html> -->
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>So sánh số khung</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+        }
+
+        .row {
+            display: flex;
+            gap: 20px;
+        }
+
+        .col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        textarea {
+            width: 100%;
+            height: 250px;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        #result {
+            white-space: pre;
+            background: #f1f1f1;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .copy-btn {
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="row">
+        <div class="col">
+            <h2>Hôm nay</h2>
+            <textarea id="today" placeholder="PACK_PEPSI_34 Trần Tiến Khoa: 219"></textarea>
+        </div>
+
+        <div class="col">
+            <h2>Hôm qua</h2>
+            <textarea id="yesterday" placeholder="PACK_PEPSI_34 Trần Tiến Khoa: 200"></textarea>
+        </div>
+    </div>
+
+    <button onclick="calculate()">Tính toán</button>
+
+    <div class="header-row">
+        <h2 style="margin:0;">Kết quả</h2>
+        <button class="copy-btn" onclick="copyResult()">📋 Copy</button>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        function parseLine(line) {
+            let parts = line.split(":");
+            if (parts.length < 2) return null;
+
+            let name = parts[0].trim();
+            let value = parseInt(parts[1].trim());
+            return { name, value };
+        }
+
+        function calculate() {
+            let todayText = document.getElementById("today").value.trim();
+            let yesterdayText = document.getElementById("yesterday").value.trim();
+
+            let todayLines = todayText.split("\n").filter(x => x.trim() !== "");
+            let yesterdayLines = yesterdayText.split("\n").filter(x => x.trim() !== "");
+
+            let yesterdayMap = {};
+
+            yesterdayLines.forEach(line => {
+                let parsed = parseLine(line);
+                if (!parsed) return;
+
+                if (!yesterdayMap[parsed.name]) {
+                    yesterdayMap[parsed.name] = parsed.value;
+                } else {
+                    yesterdayMap[parsed.name] = Math.max(yesterdayMap[parsed.name], parsed.value);
+                }
+            });
+
+            let result = "";
+
+            todayLines.forEach(line => {
+                let parsed = parseLine(line);
+                if (!parsed) return;
+
+                let name = parsed.name;
+                let todayValue = parsed.value;
+                let yesterdayValue = yesterdayMap[name] || 0;
+                let diff = todayValue - yesterdayValue;
+
+                result += `${name}: ${todayValue} - ${yesterdayValue} = ${diff} khung\n`;
+            });
+
+            document.getElementById("result").textContent = result;
+        }
+
+        function copyResult() {
+            let content = document.getElementById("result").textContent;
+
+            navigator.clipboard.writeText(content).then(() => {
+                alert("Đã copy vào clipboard!");
+            });
         }
     </script>
 
