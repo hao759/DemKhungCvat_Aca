@@ -143,9 +143,9 @@
             let text = "";
             results.forEach(r => {
                 if (r.note) {
-                    text += `${r.name}: ${r.note}\n`;
+                    text += `${r.name}: ${r.note} khung\n`;
                 } else {
-                    text += `${r.name}: ${r.count}\n`;
+                    text += `${r.name}: ${r.count} khung\n`;
                 }
             });
             output.textContent = text;
