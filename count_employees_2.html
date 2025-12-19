@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Tổng Số Khung Theo Nhân Viên</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,18 +12,24 @@
             background: #f9f9f9;
         }
 
+        h2 {
+            margin-bottom: 10px;
+        }
+
         textarea {
             width: 100%;
-            height: 150px;
+            height: 170px;
             font-size: 14px;
             padding: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         button {
-            padding: 8px 15px;
+            padding: 8px 16px;
             font-size: 14px;
             cursor: pointer;
+            margin-right: 6px;
+            margin-bottom: 6px;
         }
 
         table {
@@ -49,7 +56,7 @@
         }
 
         .summary {
-            margin-top: 10px;
+            margin-top: 8px;
             font-weight: bold;
         }
     </style>
@@ -58,75 +65,134 @@
 <body>
 
     <h2>Tính Tổng Số Khung Theo Nhân Viên</h2>
-    <textarea id="inputData" placeholder="Nhập dữ liệu dạng: tentask tênnv:sokhung"></textarea>
+
+    <textarea id="inputData" placeholder="Ví dụ:
+OMO_22 Huỳnh Chí Vĩ: 661 - 61 = 600 khung
+OMO_22 Huỳnh Chí Vĩ: 100
+OMO_23 Nguyễn Văn A: 50"></textarea>
+
     <br>
+
     <button onclick="processData()">Xử Lý</button>
+    <button onclick="copyToClipboard()">Copy để dán Excel</button>
+    <button onclick="exportExcel()">Xuất Excel</button>
 
     <div id="result"></div>
 
+    <!-- SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
     <script>
+        let sortedEntriesGlobal = [];
+        let totalFramesGlobal = 0;
+
         function processData() {
             const text = document.getElementById("inputData").value.trim();
-            const lines = text.split("\n").map(line => line.trim()).filter(line => line);
+            const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
             const totals = {};
 
             lines.forEach(line => {
                 const parts = line.split(":");
-                if (parts.length === 2) {
-                    const namePart = parts[0].trim();
-                    let countText = parts[1].trim();
-                    let countPart = 0;
+                if (parts.length !== 2) return;
 
-                    // Nếu có dấu "=" → lấy số sau "="
-                    if (countText.includes("=")) {
-                        const afterEqual = countText.split("=").pop();
-                        const match = afterEqual.match(/\d+/);
-                        if (match) {
-                            countPart = parseInt(match[0], 10);
-                        }
-                    } else {
-                        // Không có "=" → lấy số đầu tiên như cũ
-                        const match = countText.match(/\d+/);
-                        if (match) {
-                            countPart = parseInt(match[0], 10);
-                        }
-                    }
+                const namePart = parts[0].trim();
+                const countText = parts[1].trim();
+                let count = 0;
 
-                    // Lấy tên nhân viên (sau tentask)
-                    const name = namePart.split(" ").slice(1).join(" ").trim();
-                    if (!totals[name]) {
-                        totals[name] = 0;
-                    }
-                    totals[name] += countPart;
+                // Ưu tiên lấy số sau "="
+                if (countText.includes("=")) {
+                    const afterEqual = countText.split("=").pop();
+                    const match = afterEqual.match(/\d+/);
+                    if (match) count = parseInt(match[0], 10);
+                } else {
+                    // Không có "=" → lấy số đầu tiên
+                    const match = countText.match(/\d+/);
+                    if (match) count = parseInt(match[0], 10);
                 }
+
+                // Lấy tên nhân viên (bỏ task)
+                const name = namePart.split(" ").slice(1).join(" ").trim();
+                if (!name) return;
+
+                if (!totals[name]) totals[name] = 0;
+                totals[name] += count;
             });
 
-            // Sắp xếp theo từ cuối (tên riêng)
             const sortedEntries = Object.entries(totals).sort((a, b) => {
                 const lastA = a[0].split(" ").pop().toLowerCase();
                 const lastB = b[0].split(" ").pop().toLowerCase();
-                return lastA.localeCompare(lastB, 'vi', { sensitivity: 'base' }) ||
-                    a[0].localeCompare(b[0], 'vi', { sensitivity: 'base' });
+                return lastA.localeCompare(lastB, "vi", { sensitivity: "base" })
+                    || a[0].localeCompare(b[0], "vi", { sensitivity: "base" });
             });
 
-            let html = "<table><tr><th>Tên Nhân Viên</th><th>Tổng Số Khung</th></tr>";
-            let totalFrames = 0;
+            sortedEntriesGlobal = sortedEntries;
+            totalFramesGlobal = 0;
+
+            let html = `
+                <table>
+                    <tr>
+                        <th>Tên Nhân Viên</th>
+                        <th>Tổng Số Khung</th>
+                    </tr>
+            `;
+
             sortedEntries.forEach(([name, total]) => {
                 html += `<tr><td>${name}</td><td>${total}</td></tr>`;
-                totalFrames += total;
+                totalFramesGlobal += total;
             });
+
             html += "</table>";
-
-            const totalEmployees = sortedEntries.length;
-
-            html += `<div class="summary">Số lượng nhân viên: ${totalEmployees}</div>`;
-            html += `<div class="summary">Tổng số khung mọi người: ${totalFrames}</div>`;
+            html += `<div class="summary">Số lượng nhân viên: ${sortedEntries.length}</div>`;
+            html += `<div class="summary">Tổng số khung mọi người: ${totalFramesGlobal}</div>`;
 
             document.getElementById("result").innerHTML = html;
         }
-    </script>
 
+        function copyToClipboard() {
+            if (!sortedEntriesGlobal.length) {
+                alert("Chưa có dữ liệu để copy!");
+                return;
+            }
+
+            // Format TSV (tab-separated) → paste vào Excel đúng cột
+            let text = "Tên Nhân Viên\tTổng Số Khung\n";
+
+            sortedEntriesGlobal.forEach(([name, total]) => {
+                text += `${name}\t${total}\n`;
+            });
+
+            text += `\nTỔNG KHUNG\t${totalFramesGlobal}`;
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Đã copy! Dán (Ctrl+V) thẳng vào Excel.");
+            });
+        }
+
+        function exportExcel() {
+            if (!sortedEntriesGlobal.length) {
+                alert("Chưa có dữ liệu để xuất Excel!");
+                return;
+            }
+
+            const data = [
+                ["Tên Nhân Viên", "Tổng Số Khung"]
+            ];
+
+            sortedEntriesGlobal.forEach(([name, total]) => {
+                data.push([name, total]);
+            });
+
+            data.push([]);
+            data.push(["TỔNG KHUNG", totalFramesGlobal]);
+
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "TongKhung");
+
+            XLSX.writeFile(wb, "tong_so_khung_nhan_vien.xlsx");
+        }
+    </script>
 
 </body>
 
