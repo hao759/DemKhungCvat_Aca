@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Export Mapping Excel</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px;
+            font-family: Inter, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .desc {
+            color: #cbd5e1;
+            margin-bottom: 24px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 420px;
+            border: none;
+            outline: none;
+            resize: vertical;
+            border-radius: 18px;
+            padding: 20px;
+            font-size: 14px;
+            background: #0f172a;
+            color: #f8fafc;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        textarea::placeholder {
+            color: #94a3b8;
+        }
+
+        .bottom {
+            margin-top: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .info {
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        button {
+            border: none;
+            outline: none;
+            padding: 14px 28px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            transition: 0.25s;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.5);
+        }
+
+        .success {
+            margin-top: 18px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+            display: none;
+        }
+
+        .error {
+            margin-top: 18px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            display: none;
+        }
+
+        .footer {
+            margin-top: 20px;
+            color: #64748b;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            textarea {
+                height: 320px;
+            }
+
+            .bottom {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Export Mapping Excel</h1>
+
+        <div class="desc">
+            Paste JSON mapping vào ô bên dưới rồi bấm xuất file Excel.
+        </div>
+
+        <textarea id="jsonInput" placeholder='Paste JSON vào đây...'></textarea>
+
+        <div class="bottom">
+            <div class="info">
+                Xuất gồm 2 cột: <b>label_id</b> và <b>product_id</b>
+            </div>
+
+            <button onclick="exportExcel()">
+                Xuất Excel
+            </button>
+        </div>
+
+        <div class="success" id="successBox">
+            Xuất file Excel thành công 🎉
+        </div>
+
+        <div class="error" id="errorBox">
+        </div>
+
+        <div class="footer">
+            Tool Export Mapping • XLSX
+        </div>
+
+    </div>
+
+    <script>
+        function showSuccess(message) {
+            const successBox = document.getElementById("successBox");
+            const errorBox = document.getElementById("errorBox");
+
+            errorBox.style.display = "none";
+
+            successBox.innerText = message;
+            successBox.style.display = "block";
+        }
+
+        function showError(message) {
+            const successBox = document.getElementById("successBox");
+            const errorBox = document.getElementById("errorBox");
+
+            successBox.style.display = "none";
+
+            errorBox.innerText = message;
+            errorBox.style.display = "block";
+        }
+
+        function exportExcel() {
+            try {
+
+                const input = document.getElementById("jsonInput").value.trim();
+
+                if (!input) {
+                    return showError("Vui lòng paste JSON.");
+                }
+
+                const jsonData = JSON.parse(input);
+
+                const mappings = jsonData?.data?.mappings || [];
+
+                if (!mappings.length) {
+                    return showError("Không tìm thấy mappings.");
+                }
+
+                const rows = mappings.map(item => ({
+                    label_id: item.label_id,
+                    product_id: item.product_id
+                }));
+
+                const worksheet = XLSX.utils.json_to_sheet(rows);
+
+                const workbook = XLSX.utils.book_new();
+
+                XLSX.utils.book_append_sheet(
+                    workbook,
+                    worksheet,
+                    "Mappings"
+                );
+
+                XLSX.writeFile(workbook, "mapping_labels.xlsx");
+
+                showSuccess(`Xuất thành công ${rows.length} dòng.`);
+
+            } catch (err) {
+                showError("JSON lỗi: " + err.message);
+            }
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>JSON to Excel</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+    <h3>Convert JSON → Excel (giữ nguyên cấu trúc)</h3>
+
+    <input type="file" id="fileInput" accept=".txt,.json" />
+    <button onclick="convert()">Convert</button>
+
+    <script>
+        function convert() {
+            const file = document.getElementById("fileInput").files[0];
+            if (!file) {
+                alert("Chưa chọn file");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const json = JSON.parse(e.target.result);
+
+                    const ids = json.ids || [];
+                    const codes = json.codes || [];
+                    const classes = json.classes || [];
+
+                    const max = Math.max(ids.length, codes.length, classes.length);
+
+                    const rows = [];
+                    rows.push(["ids", "codes", "classes"]);
+
+                    for (let i = 0; i < max; i++) {
+                        rows.push([
+                            ids[i] ?? "",
+                            codes[i] ?? "",
+                            classes[i] ?? ""
+                        ]);
+                    }
+
+                    const ws = XLSX.utils.aoa_to_sheet(rows);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "data");
+
+                    XLSX.writeFile(wb, "ps-model.xlsx");
+                } catch (err) {
+                    alert("File không đúng JSON");
+                    console.error(err);
+                }
+            };
+
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+
+</html>
